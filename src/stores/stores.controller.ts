@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Param, ParseIntPipe, DefaultValuePipe, Post, Body, UseGuards, Req, Put, Delete } from '@nestjs/common';
+import { Controller, Get, Query, Param, ParseIntPipe, DefaultValuePipe, Post, Body, UseGuards, Req, Put, Delete, ParseBoolPipe } from '@nestjs/common';
 import { StoresService } from './stores.service';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
@@ -13,14 +13,18 @@ export class StoresController {
 
   @Get()
   @ApiOperation({ summary: 'List stores with pagination and search' })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (>= 1)', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Items per page (>= 1)', example: 10 })
   @ApiQuery({ name: 'q', required: false, description: 'Search by name or address' })
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('q') q?: string,
   ) {
+    if (page < 1 || limit < 1) {
+      // ValidationPipe will turn this into a 400 response
+      throw new Error('page and limit must be greater than or equal to 1');
+    }
     return this.stores.findAll(page, limit, q);
   }
 

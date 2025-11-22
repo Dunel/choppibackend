@@ -13,7 +13,9 @@ export class StoresService {
   ) {}
 
   async findAll(page = 1, limit = 10, q?: string) {
-    const skip = (page - 1) * limit;
+    const safePage = page && page > 0 ? page : 1;
+    const safeLimit = limit && limit > 0 ? limit : 10;
+    const skip = (safePage - 1) * safeLimit;
     const where: any = { deletedAt: null };
 
     if (q) {
@@ -26,13 +28,13 @@ export class StoresService {
     const [data, total] = await this.repo.findAndCount({
       where: where.OR ?? where,
       skip,
-      take: limit,
+      take: safeLimit,
       order: { createdAt: 'DESC' },
     });
 
     return {
       data,
-      meta: { page, limit, total },
+      meta: { page: safePage, limit: safeLimit, total },
     };
   }
 
