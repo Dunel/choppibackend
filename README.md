@@ -22,119 +22,200 @@
   [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
 ## Description
+API backend de Choppi construida con NestJS, TypeScript, TypeORM y PostgreSQL. Proporciona autenticación basada en JWT, operaciones CRUD para tiendas y productos, gestión de inventario y precios por tienda (store-products), validación global de peticiones y documentación Swagger (OpenAPI).
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Contents
+Overview
+Technology Stack
+Environment Variables
+Installation & Running
+Database / Migrations / Seeds
+Domain Model
+Authentication
+Pagination & Query Conventions
+Endpoints Summary
+Detailed Endpoint Reference
+Error Responses
+Swagger Documentation
+Development Scripts
+Deployment Notes (Railway)
+License
 
-## Project setup
+## Overview
+The API manages:
+- Users (registration, login, profile)
+- Stores (owned by a user, soft deletion)
+- Products (global catalog)
+- StoreProducts (price and stock per store/product pair)
 
+## Technology Stack
+- NestJS 11
+- TypeScript
+- TypeORM 0.3.x
+- PostgreSQL
+- JWT (passport-local + passport-jwt)
+- Class-Validator / Class-Transformer
+- Swagger via @nestjs/swagger
+
+## Environment Variables
+File: `.env` (examples)
+```
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=changeme
+DB_NAME=postgres
+DB_SYNC=false
+DB_SSL=false
+JWT_SECRET=supersecret
+JWT_EXPIRES_IN=3600
+PORT=3000
+```
+
+## Installation & Running
 ```bash
-$ npm install
+npm install
+npm run start:dev   # development with watch
+npm run build       # compile to dist
+npm run start:prod  # run compiled code
 ```
 
-## Compile and run the project
-
+## Database / Migrations / Seeds
+Runtime config: `src/config/typeorm.config.ts`. CLI datasource: `src/datasource.ts`.
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run migration:generate   # generate migration from entities (adjust script name as needed)
+npm run migration:run        # apply pending migrations
+npm run migration:revert     # revert last migration
 ```
+Seed migration inserts demo user (`test@gmail.com` / `demo123`), sample stores, products, store_products rows.
 
-## Database (TypeORM)
+## Domain Model
+Entity | Fields
+------ | ------------------------------------------------------------------------------
+User | id (uuid), email (unique), password (hashed), created_at
+Store | id (uuid), name, address (nullable), owner (User), created_at, deleted_at (soft)
+Product | id (uuid), name, description (nullable), created_at
+StoreProduct | id (uuid), store (Store), product (Product), price (decimal), stock (int)
 
-- Config file: `src/config/typeorm.config.ts` reads environment variables.
-- Driver: Postgres (`pg`) is already listed in dependencies.
+## Authentication
+POST /auth/register → access token + sanitized user.
+POST /auth/login → access token + sanitized user.
+GET /auth/profile → current authenticated user.
+Header for protected routes: `Authorization: Bearer <token>`.
 
-Set environment variables (PowerShell examples):
+## Pagination & Query Conventions
+- `page` (default 1), `limit` (default 10)
+- `q` (search) for stores (name/address) and store-products (product name/description)
+- `inStock=true` returns store-products with `stock > 0`
 
-```powershell
-$env:DB_HOST = "localhost"
-$env:DB_PORT = "5432"
-$env:DB_USER = "postgres"
-$env:DB_PASSWORD = "changeme"
-$env:DB_NAME = "postgres"
-$env:DB_SYNC = "false" # set "true" only for local dev
-$env:DB_SSL = "false"
-```
+## Endpoints Summary
+Auth
+- POST /auth/register
+- POST /auth/login
+- GET /auth/profile (protected)
 
-Or create a `.env` file based on `.env.example` and load it with your process manager (e.g., Docker, PM2) or add a dotenv loader if preferred.
+Stores
+- GET /stores (?page, ?limit, ?q)
+- GET /stores/:id
+- POST /stores (protected)
+- PUT /stores/:id (protected)
+- DELETE /stores/:id (protected, soft delete)
 
-## Auth (JWT)
+Products
+- GET /products/:id
+- POST /products (protected)
 
-Environment variables required:
+Store Products
+- POST /stores/:storeId/products (protected)
+- GET /stores/:storeId/products (?page, ?limit, ?q, ?inStock)
+- PUT /stores/:storeId/products/:storeProductId (protected)
+- DELETE /stores/:storeId/products/:storeProductId (protected)
 
-```env
-JWT_SECRET=changeme            # Set a strong secret in production
-JWT_EXPIRES_IN=3600s           # Any value acceptable by jsonwebtoken
-```
+## Detailed Endpoint Reference
+### Auth
+POST /auth/register
+Body: `{ "email": string, "password": string, "displayName"?: string }`
+Response: `{ accessToken: string, user: { id, email } }`
 
-Endpoints:
+POST /auth/login
+Body: `{ "email": string, "password": string }`
+Response: same as register.
 
-- `POST /auth/register` body: `{ email, password, displayName? }` → returns `{ accessToken, user }`
-- `POST /auth/login` body: `{ email, password }` → returns `{ accessToken, user }`
-- `GET /auth/profile` header: `Authorization: Bearer <token>` → returns JWT payload
+GET /auth/profile (protected)
+Header: `Authorization: Bearer <token>`
+Response: `{ userId, email }`
 
-Example login (PowerShell):
+### Stores
+GET /stores
+Query: `page`, `limit`, `q`
+Response: `{ data: Store[], meta: { page, limit, total } }`
 
-```powershell
-Invoke-RestMethod -Uri http://localhost:3000/auth/login -Method Post -Body (@{ email='test@example.com'; password='secret123' } | ConvertTo-Json) -ContentType 'application/json'
-```
+GET /stores/:id → Store or 404.
 
+POST /stores (protected)
+Body: `{ "name": string, "address"?: string }`
+Response: Store.
 
+PUT /stores/:id (protected)
+Body: partial of CreateStoreDto.
+Response: updated Store.
 
-## Run tests
+DELETE /stores/:id (protected)
+Soft deletes store. Response: `{ success: true }`
 
+### Products
+GET /products/:id → Product or 404.
+
+POST /products (protected)
+Body: `{ "name": string, "description"?: string }`
+Response: Product.
+
+### Store Products
+POST /stores/:storeId/products (protected)
+Body: `{ "productId": uuid, "price": number, "stock": number }`
+Response: StoreProduct.
+
+GET /stores/:storeId/products
+Query: `page`, `limit`, `q`, `inStock`
+Response: `{ data: StoreProduct[], meta: { page, limit, total } }` (joined Product info).
+
+PUT /stores/:storeId/products/:storeProductId (protected)
+Body: `{ "price"?: number, "stock"?: number }`
+Response: updated StoreProduct.
+
+DELETE /stores/:storeId/products/:storeProductId (protected)
+Response: empty (204) or `{}`.
+
+## Error Responses
+Examples:
+400 Validation → `{ "statusCode": 400, "message": ["error"], "error": "Bad Request" }`
+401 Unauthorized → `{ "statusCode": 401, "message": "Unauthorized" }`
+404 Not found → `{ "statusCode": 404, "message": "Store not found", "error": "Not Found" }`
+
+## Swagger Documentation
+Path: `/api`.
+Use Authorize with `Bearer <token>` to access protected endpoints.
+DTO models include examples.
+
+## Development Scripts
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start        # dev
+npm run start:dev    # dev watch
+npm run build        # compile
+npm run start:prod   # production
+npm run lint         # eslint
+npm run test         # unit tests
+npm run test:e2e     # e2e tests
+npm run migration:run
+npm run migration:revert
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## Deployment Notes (Railway)
+1. Create Railway service from repository.
+2. Set env vars (DB_*, JWT_*, PORT).
+3. Provide Postgres (managed service or external).
+4. Deploy with command `npm run start:prod`.
+5. Public domain shows under service Domains; Swagger at `<public-url>/api`.
 
 ## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+UNLICENSED (internal project). Adjust if needed.
