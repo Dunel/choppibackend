@@ -4,12 +4,18 @@ import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Request } from 'express';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('stores')
 @Controller('stores')
 export class StoresController {
   constructor(private readonly stores: StoresService) {}
 
   @Get()
+  @ApiOperation({ summary: 'List stores with pagination and search' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  @ApiQuery({ name: 'q', required: false, description: 'Search by name or address' })
   async findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -19,12 +25,15 @@ export class StoresController {
   }
 
   @Get(':id')
+  @ApiOperation({ summary: 'Get store by id' })
   async findOne(@Param('id') id: string) {
     return this.stores.findOne(id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Post()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new store' })
   async create(@Body() dto: CreateStoreDto, @Req() req: Request) {
     const user = req.user as any;
     return this.stores.create(dto, { id: user.userId } as any);
@@ -32,12 +41,16 @@ export class StoresController {
 
   @UseGuards(JwtAuthGuard)
   @Put(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a store' })
   async update(@Param('id') id: string, @Body() dto: UpdateStoreDto) {
     return this.stores.update(id, dto);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Soft delete a store' })
   async remove(@Param('id') id: string) {
     await this.stores.softDelete(id);
     return { success: true };
