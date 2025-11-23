@@ -70,7 +70,7 @@ export class StoreProductsService {
     }
 
     if (q) {
-      query.andWhere('product.name ILIKE :q OR product.description ILIKE :q', {
+      query.andWhere('(product.name ILIKE :q OR product.description ILIKE :q)', {
         q: `%${q}%`,
       });
     }

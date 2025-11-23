@@ -36,8 +36,6 @@ export class SeedInitialData1700000000001 implements MigrationInterface {
        (uuid_generate_v4(), 'Wine White 750ml', 'White wine', NOW())`,
     );
 
-    // Associate some store_products
-    // Note: using subqueries to pick existing ids for simplicity
     await queryRunner.query(
       `INSERT INTO "store_products" ("id", "storeId", "productId", "price", "stock")
        SELECT uuid_generate_v4(), s.id, p.id, sp.price, sp.stock
