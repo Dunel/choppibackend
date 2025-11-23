@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Store } from '../entities/store.entity';
 import { CreateStoreDto } from './dto/create-store.dto';
 import { UpdateStoreDto } from './dto/update-store.dto';
@@ -16,21 +16,20 @@ export class StoresService {
     const safePage = page && page > 0 ? page : 1;
     const safeLimit = limit && limit > 0 ? limit : 10;
     const skip = (safePage - 1) * safeLimit;
-    const where: any = { deletedAt: null };
+    const query = this.repo
+      .createQueryBuilder('store')
+      .where('store.deletedAt IS NULL');
 
     if (q) {
-      where.OR = [
-        { name: ILike(`%${q}%`), deletedAt: null },
-        { address: ILike(`%${q}%`), deletedAt: null },
-      ];
+      query.andWhere(
+        '(unaccent(store.name) ILIKE unaccent(:q) OR unaccent(store.address) ILIKE unaccent(:q))',
+        { q: `%${q}%` },
+      );
     }
 
-    const [data, total] = await this.repo.findAndCount({
-      where: where.OR ?? where,
-      skip,
-      take: safeLimit,
-      order: { createdAt: 'DESC' },
-    });
+    query.orderBy('store.createdAt', 'DESC').skip(skip).take(safeLimit);
+
+    const [data, total] = await query.getManyAndCount();
 
     return {
       data,

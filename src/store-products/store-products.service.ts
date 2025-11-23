@@ -70,9 +70,12 @@ export class StoreProductsService {
     }
 
     if (q) {
-      query.andWhere('(product.name ILIKE :q OR product.description ILIKE :q)', {
-        q: `%${q}%`,
-      });
+      query.andWhere(
+        '(unaccent(product.name) ILIKE unaccent(:q) OR unaccent(product.description) ILIKE unaccent(:q))',
+        {
+          q: `%${q}%`,
+        },
+      );
     }
 
     query.skip(skip).take(limit).orderBy('product.name', 'ASC');
