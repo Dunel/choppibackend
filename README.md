@@ -72,13 +72,36 @@ JWT_EXPIRES_IN=3600
 PORT=3000
 ```
 
+
 ## Installation & Running
-```bash
-npm install
-npm run start:dev   # development with watch
-npm run build       # compile to dist
-npm run start:prod  # run compiled code
-```
+
+### Forma normal (Node.js local)
+1. Instala dependencias:
+  ```bash
+  npm install
+  ```
+2. Configura tu archivo `.env` con los datos de la base de datos y JWT.
+3. Ejecuta en desarrollo (con recarga):
+  ```bash
+  npm run start:dev
+  ```
+4. O bien, compila y ejecuta en producción:
+  ```bash
+  npm run build
+  npm run start:prod
+  ```
+
+### Con Docker
+1. Asegúrate de tener Docker instalado y el archivo `.env` en el root del proyecto.
+2. Construye la imagen:
+  ```bash
+  docker build -t choppibackend .
+  ```
+3. Corre el contenedor exponiendo el puerto 3000:
+  ```bash
+  docker run --rm -p 3000:3000 --env-file .env choppibackend
+  ```
+4. Accede a la API en `http://localhost:3000` y a la documentación Swagger en `http://localhost:3000/api`.
 
 ## Database / Migrations / Seeds
 Runtime config: `src/config/typeorm.config.ts`. CLI datasource: `src/datasource.ts`.
